@@ -437,9 +437,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       {
         primes[j+0] = nextPrime(bits, low); bits &= bits - 1;
         primes[j+1] = nextPrime(bits, low); bits &= bits - 1;
-        primes[j+2] = nextPrime(bits, low); bits &= bits - 1;
-        primes[j+3] = nextPrime(bits, low); bits &= bits - 1;
-        j += 4;
+        j += 2;
       }
       while (j < i);
 
