@@ -29,8 +29,15 @@ jobs:
       - name: Get CPU info
         run: ./primesieve --cpu-info
       - name: Do timing (branch)
-        run: ./primesieve 2^32 --threads=1 --time --no-status
-
+        run: ./primesieve 2^40 --threads=1 --time --no-status
+      - name: Compile main
+        run: |
+          rm primesieve
+          git checkout master
+          cmake . -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON -DBUILD_MANPAGE=ON -DCMAKE_BUILD_TYPE=${{matrix.config}} -DCMAKE_C_FLAGS="-Wall -Wextra -pedantic -Werror" -DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic -Werror"
+          cmake --build . --parallel --verbose
+      - name: Do timing (branch)
+        run: ./primesieve 2^40 --threads=1 --time --no-status
 
 
 
