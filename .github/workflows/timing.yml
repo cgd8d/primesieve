@@ -1,0 +1,36 @@
+name: timing
+
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch
+
+jobs:
+  linux_gcc:
+    strategy:
+      matrix:
+        platform: ['ubuntu-latest']
+        config: ['Release']
+    runs-on: ${{ matrix.platform }}
+    env:
+      CC: gcc
+      CXX: g++
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
+      - name: Install dependencies
+        run: |
+            sudo apt update
+            sudo apt install asciidoc libxml2-utils xmlto
+      - name: Build primesieve
+        run: |
+            cmake . -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON -DBUILD_MANPAGE=ON -DCMAKE_BUILD_TYPE=${{matrix.config}} -DCMAKE_C_FLAGS="-Wall -Wextra -pedantic -Werror" -DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic -Werror"
+            cmake --build . --parallel --verbose
+      - name: Do timing (branch)
+        run: ./primesieve 2^32 --threads=1 --time --no-status --cpu-info
+
+
+
+
+
+        
