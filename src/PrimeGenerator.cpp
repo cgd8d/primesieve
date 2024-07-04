@@ -430,9 +430,31 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     do
     {
       uint64_t bits = littleendian_cast<uint64_t>(&sieve[sieveIdx]);
-      std::size_t j = i;
+      std::size_t j_lo = i;
       i += popcnt64(bits);
+      std::size_t j_hi = i;
 
+      #if !defined(CTZ64_SUPPORTS_ZERO)
+        #error // Technical debt
+      #endif
+    
+      while(j_lo < j_hi) // At least one bit set
+      {
+        int bitIndex_lo = __builtin_ctzll(bits);
+        int bitIndex_hi = 63-__builtin_clzll(bits);
+        uint64_t bitValue_lo = bitValues[bitIndex_lo];
+        uint64_t bitValue_hi = bitValues[bitIndex_hi];
+        primes[j_lo++] = low + bitValue_lo;
+        primes[--j_hi] = low + bitValue_hi; // ok if j_lo+1==j_hi
+        bits &= bits - 1; // clear tail bit
+        
+
+
+
+
+
+
+          
       do
       {
         primes[j] = nextPrime(bits, low); bits &= bits - 1;
