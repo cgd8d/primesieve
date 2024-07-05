@@ -437,10 +437,12 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       #if !defined(CTZ64_SUPPORTS_ZERO)
         #error // Technical debt
       #endif
-    
-      while(j_lo < j_hi)
+
+      while(bits)
+      //while(j_lo < j_hi) // equivalent
       {
         // assert(bits != 0);
+        // assert(j_lo < j_hi);
         int bitIndex_lo = __builtin_ctzll(bits);
         int bitIndex_hi = 63-__builtin_clzll(bits);
         uint64_t bitValue_lo = bitValues[bitIndex_lo];
