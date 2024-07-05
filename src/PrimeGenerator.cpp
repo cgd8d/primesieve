@@ -438,8 +438,9 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         #error // Technical debt
       #endif
     
-      while(j_lo < j_hi) // At least one bit set
+      while(j_lo < j_hi)
       {
+        // assert(bits != 0);
         int bitIndex_lo = __builtin_ctzll(bits);
         int bitIndex_hi = 63-__builtin_clzll(bits);
         uint64_t bitValue_lo = bitValues[bitIndex_lo];
@@ -447,20 +448,8 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         primes[j_lo++] = low + bitValue_lo;
         primes[--j_hi] = low + bitValue_hi; // ok if j_lo+1==j_hi
         bits &= bits - 1; // clear tail bit
-        
-
-
-
-
-
-
-          
-      do
-      {
-        primes[j] = nextPrime(bits, low); bits &= bits - 1;
-        j++;
+        bits = _bzhi_u64(bits, bitIndex_hi); // clear leading bit if not same
       }
-      while (j < i);
 
       low += 8 * 30;
       sieveIdx += 8;
