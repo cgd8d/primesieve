@@ -1,7 +1,9 @@
 
+#include <primesieve.hpp>
+#include <iostream>
+#include <numeric>
 
-
-uint64_t main()
+int main()
 {
   uint64_t start = 0;
   uint64_t stop = 1ull << 38;
@@ -17,6 +19,11 @@ uint64_t main()
   for (std::size_t i = 0; it.primes_[i] < stop; i++)
     acc += it.primes_[i];
 
-  return acc;
+  std::cout << "Sum of primes in ["
+    << start << ", " << stop
+    << "] (mod 2^64) = " << acc
+    << std::endl;
+
+  return 0;
 }
 
