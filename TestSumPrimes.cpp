@@ -6,7 +6,7 @@
 int main()
 {
   uint64_t start = 0;
-  uint64_t stop = 1ull << 38;
+  uint64_t stop = 1ull << 40;
   uint64_t acc = 0;
   primesieve::iterator it(start);
   it.generate_next_primes();
