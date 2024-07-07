@@ -443,8 +443,8 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       {
         // assert(bits != 0);
         // assert(j_lo < j_hi);
-        int bitIndex_lo = __builtin_ctzll(bits);
-        int bitIndex_hi = 63-__builtin_clzll(bits);
+        uint64_t bitIndex_lo = __builtin_ctzll(bits);
+        uint64_t bitIndex_hi = 63ull-__builtin_clzll(bits);
         bits &= bits - 1; // clear tail bit
         bits = _bzhi_u64(bits, bitIndex_hi); // clear leading bit if not same
         uint64_t bitValue_lo = bitValues[bitIndex_lo];
