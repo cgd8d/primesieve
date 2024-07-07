@@ -439,6 +439,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         #error // Technical debt
       #endif
 
+      #pragma GCC unroll 2
       for(size_t inc = 0;
           inc < (pc+1)/2;
           inc++)
