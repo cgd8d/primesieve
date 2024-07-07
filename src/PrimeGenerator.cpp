@@ -431,14 +431,18 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     {
       uint64_t bits = littleendian_cast<uint64_t>(&sieve[sieveIdx]);
       std::size_t j_lo = i;
-      i += popcnt64(bits);
+      std::size_t pc = popcnt64(bits);
+      i += pc
       std::size_t j_hi = i;
 
       #if !defined(CTZ64_SUPPORTS_ZERO)
         #error // Technical debt
       #endif
 
-      while(bits)
+      for(size_t inc = 0;
+          inc < (pc+1)/2;
+          inc++)
+      //while(bits)
       //while(j_lo < j_hi) // equivalent
       {
         // assert(bits != 0);
@@ -450,8 +454,8 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         bits = _bzhi_u64(bits, bitIndex_hi); // clear leading bit if not same
         uint64_t bitValue_lo = bitValues[bitIndex_lo];
         uint64_t bitValue_hi = bitValues[bitIndex_hi];
-        primes[j_lo++] = low + bitValue_lo;
-        primes[--j_hi] = low + bitValue_hi; // ok if j_lo+1==j_hi
+        primes[j_lo+inc] = low + bitValue_lo;
+        primes[i-inc-1] = low + bitValue_hi; // ok if j_lo+1==j_hi
       }
 
       low += 8 * 30;
