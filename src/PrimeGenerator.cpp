@@ -433,7 +433,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       std::size_t j_lo = i;
       std::size_t pc = popcnt64(bits);
       i += pc;
-      std::size_t j_hi = i;
+      //std::size_t j_hi = i;
 
       #if !defined(CTZ64_SUPPORTS_ZERO)
         #error // Technical debt
