@@ -442,22 +442,25 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
 
       //#pragma GCC unroll 2
       for(size_t inc = 0;
-          inc < (pc+1)/2;
+          inc < (pc+2)/3;
           inc++)
       //while(bits)
       //while(j_lo < j_hi) // equivalent
       {
         // assert(bits != 0);
         // assert(j_lo < j_hi);
-        uint64_t bitIndex_lo = __builtin_ctzll(bits_t);
+        //uint64_t bitIndex_lo = __builtin_ctzll(bits_t);
         //uint64_t bitIndex_hi = 63ull-__builtin_clzll(bits);
         uint64_t bitIndex_hi = 63ull xor __builtin_clzll(bits_l); // Equivalent to 63-clz(bits)
-        bits_t &= bits_t - 1; // clear tail bit
+        //bits_t &= bits_t - 1; // clear tail bit
         bits_l = _bzhi_u64(bits_l, bitIndex_hi); // clear leading bit if not same
-        uint64_t bitValue_lo = bitValues[bitIndex_lo];
+        //uint64_t bitValue_lo = bitValues[bitIndex_lo];
         uint64_t bitValue_hi = bitValues[bitIndex_hi];
-        primes[j_lo+inc] = low + bitValue_lo;
+        //primes[j_lo+inc] = low + bitValue_lo;
         primes[i-inc-1] = low + bitValue_hi; // ok if j_lo+1==j_hi
+
+        primes[j_lo+2*inc] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
+        primes[j_lo+2*inc+1] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
       }
 
       low += 8 * 30;
