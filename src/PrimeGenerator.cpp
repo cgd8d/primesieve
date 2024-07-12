@@ -442,7 +442,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
 
       //#pragma GCC unroll 2
       for(size_t inc = 0;
-          inc < (pc+3)/4;
+          inc < (pc+4)/5;
           inc++)
       //while(bits)
       //while(j_lo < j_hi) // equivalent
@@ -459,9 +459,10 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         //primes[j_lo+inc] = low + bitValue_lo;
         primes[i-inc-1] = low + bitValue_hi; // ok if j_lo+1==j_hi
 
-        primes[j_lo+3*inc] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
-        primes[j_lo+3*inc+1] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
-        primes[j_lo+3*inc+2] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
+        primes[j_lo+4*inc] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
+        primes[j_lo+4*inc+1] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
+        primes[j_lo+4*inc+2] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
+        primes[j_lo+4*inc+3] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
       }
 
       low += 8 * 30;
