@@ -77,7 +77,7 @@ private:
 /// returns a random 64-bit integer. It is up to the caller
 /// to handle this use case correctly.
 ///
-__attribute__((optimize("no-tree-vectorize")))
+//__attribute__((optimize("no-tree-vectorize")))
 inline uint64_t Erat::nextPrime(uint64_t bits, uint64_t low)
 {
 // CTZ64_SUPPORTS_ZERO is defined if (ctz64(0) <= 64),
