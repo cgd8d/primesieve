@@ -403,6 +403,7 @@ void PrimeGenerator::fillPrevPrimes(Vector<uint64_t>& primes,
 /// this reason iterator::next_prime() runs up to 2x faster
 /// than iterator::prev_prime().
 ///
+__attribute__((optimize("no-tree-vectorize")))
 void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_t* size)
 {
   *size = 0;
