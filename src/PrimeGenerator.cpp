@@ -430,7 +430,6 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     do
     {
       uint64_t bits_t = littleendian_cast<uint64_t>(&sieve[sieveIdx]);
-      uint64_t bits_l = bits_t;
       std::size_t j_lo = i;
       std::size_t pc = popcnt64(bits_t);
       i += pc;
@@ -439,6 +438,21 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       #if !defined(CTZ64_SUPPORTS_ZERO)
         #error // Technical debt
       #endif
+
+      // Break dependency chain with separate
+      // bits variable for testing leading zeros.
+      uint64_t bits_l = bits_t;
+
+      // Handle tricky corner case.
+      // If we leave it to regular handling, 
+      // we end up overwriting previous
+      // prime values.
+      if(pc == 1)
+      {
+        primes[j_lo] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
+        j_lo++;
+        pc--;
+      }
 
       //#pragma GCC unroll 2
       for(size_t inc = 0;
@@ -457,12 +471,17 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         //uint64_t bitValue_lo = bitValues[bitIndex_lo];
         uint64_t bitValue_hi = bitValues[bitIndex_hi];
         //primes[j_lo+inc] = low + bitValue_lo;
-        primes[i-inc-1] = low + bitValue_hi; // ok if j_lo+1==j_hi
+        primes[i-2*inc-1] = low + bitValue_hi; // ok if j_lo+1==j_hi
 
-        primes[j_lo+4*inc] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
-        primes[j_lo+4*inc+1] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
-        primes[j_lo+4*inc+2] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
-        primes[j_lo+4*inc+3] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
+        bitIndex_hi = 63ull xor __builtin_clzll(bits_l); // Equivalent to 63-clz(bits)
+        bits_l = _bzhi_u64(bits_l, bitIndex_hi); // clear leading bit if not same
+        bitValue_hi = bitValues[bitIndex_hi];
+        primes[i-2*inc-2] = low + bitValue_hi; // ok if j_lo+1==j_hi
+
+        primes[j_lo+3*inc] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
+        primes[j_lo+3*inc+1] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
+        primes[j_lo+3*inc+2] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
+        //primes[j_lo+4*inc+3] = nextPrime(bits_t, low); bits_t &= bits_t - 1;
       }
 
       low += 8 * 30;
