@@ -32,6 +32,8 @@ jobs:
         run: |
           ./primesieve --cpu-info
           lscpu
+      - name: Count primes for reference (branch)
+        run: ./primesieve 2^40 --threads=1 --time --no-status
       - name: Do timing (branch)
         run: |
           # ./primesieve 2^40 --threads=1 --time --no-status
@@ -44,6 +46,8 @@ jobs:
           cmake --build . --parallel --verbose
           g++ -march=native -std=c++20 -O3 -L. -Wl,-rpath=. -Iinclude TestSumPrimes.cpp -lprimesieve -o TestSumPrimes
           objdump -d libprimesieve.so > AsmMainBranch.txt
+      - name: Count primes for reference (main)
+        run: ./primesieve 2^40 --threads=1 --time --no-status
       - name: Do timing (main)
         run: |
           # ./primesieve 2^40 --threads=1 --time --no-status
