@@ -423,7 +423,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     uint64_t sieveSize = sieve_.size();
     uint8_t* sieve = sieve_.data();
 
-    // Create bitvals helper register for AVX.
+    // Create bitvals_lookup helper register for AVX.
     uint64_t bitvals64_0 =
       ( 7ull     ) +
       (11ull << 1) +
@@ -438,7 +438,16 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     uint64_t bitvals_step = 0x1e1e1e1e1e1e1e1eULL;
     uint64_t bitvals64_1 = bitvals64_0 + bitvals_step;
     __m128i bitvals_half = _mm_set_epi64x(bitvals64_1, bitvals64_0); // may not be VEX coded
-    __m256i bitvals = _mm256_set_m128i(bitvals_half, bitvals_half);
+    __m256i bitvals_lookup = _mm256_set_m128i(bitvals_half, bitvals_half);
+
+    // Also create helper with lookup of
+    // multiples if 60.
+    __m128i bitvals_lookuphi_half = _mm_set_epi8(
+      0, 0, 0, 0,
+      0, 0, 0, 0,
+      0, 0, 0, 0,
+      180, 120, 60, 0);
+    __m256i bitvals_lookuphi = _mm256_set_m128i(bitvals_lookuphi_half, bitvals_lookuphi_half);
 
     // Fill the buffer with at least (maxSize - 64) primes.
     // Each loop iteration can generate up to 64 primes
@@ -450,12 +459,34 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       std::size_t j = i;
       i += popcnt64(bits);
 
+      // Make vector of value low.
+      __m256i low_vec = _mm256_set1_epi64x(low);
+
       do
       {
-        primes[j+0] = nextPrime(bits, low); bits &= bits - 1;
-        primes[j+1] = nextPrime(bits, low); bits &= bits - 1;
-        primes[j+2] = nextPrime(bits, low); bits &= bits - 1;
-        primes[j+3] = nextPrime(bits, low); bits &= bits - 1;
+        auto bitIndex0 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex1 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex2 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex3 = ctz64(bits); bits &= bits - 1;
+
+        // Load bit indices into ymm register. 
+        // Warning: if a compiler implements this
+        // with legacy SSE instructions, expect a
+        // performance regression.  I believe that
+        // compilers with AVX enabled will typically
+        // disable legacy SSE and use VEX-coded equivalents. 
+        __m256i bitIndices = _mm256_set_epi64x(bitIndex3, bitIndex2, bitIndex1, bitIndex0);
+        __m256i bitIndices_hi = _mm256_srl_epi64(bitIndices, 4);
+        __m256i bitVals_lo = _mm256_shuffle_epi8(bitvals_lookup, bitIndices);
+        __m256i bitVals_hi = _mm256_shuffle_epi8(bitvals_lookup_hi, bitIndices_hi);
+        __m256i bitVals = _mm256_add_epi64(bitVals_lo, bitVals_hi);
+        __m256i nextPrimes = _mm256_add_epi64(bitVals, low_vec);
+        _mm256_storeu_si256(primes.data()+j, nextPrimes);
+          
+        //primes[j+0] = nextPrime(bits, low); bits &= bits - 1;
+        //primes[j+1] = nextPrime(bits, low); bits &= bits - 1;
+        //primes[j+2] = nextPrime(bits, low); bits &= bits - 1;
+        //primes[j+3] = nextPrime(bits, low); bits &= bits - 1;
         j += 4;
       }
       while (j < i);
@@ -465,6 +496,11 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     }
     while (i <= maxSize - 64 &&
            sieveIdx < sieveSize);
+
+    // Recommended to avoid mixing SSE and
+    // AVX instructions, which has a penalty 
+    // on many processors.
+    _mm256_zeroupper();
 
     low_ = low;
     sieveIdx_ = sieveIdx;
