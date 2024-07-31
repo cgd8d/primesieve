@@ -446,7 +446,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       0, 0, 0, 0,
       0, 0, 0, 0,
       0, 0, 0, 0,
-      180, 120, 60, 0);
+      (char)180, 120, 60, 0);
     __m256i bitvals_lookuphi = _mm256_set_m128i(bitvals_lookuphi_half, bitvals_lookuphi_half);
 
     // Fill the buffer with at least (maxSize - 64) primes.
@@ -476,12 +476,12 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         // compilers with AVX enabled will typically
         // disable legacy SSE and use VEX-coded equivalents. 
         __m256i bitIndices = _mm256_set_epi64x(bitIndex3, bitIndex2, bitIndex1, bitIndex0);
-        __m256i bitIndices_hi = _mm256_srl_epi64(bitIndices, 4);
+        __m256i bitIndices_hi = _mm256_srli_epi64(bitIndices, 4);
         __m256i bitVals_lo = _mm256_shuffle_epi8(bitvals_lookup, bitIndices);
-        __m256i bitVals_hi = _mm256_shuffle_epi8(bitvals_lookup_hi, bitIndices_hi);
+        __m256i bitVals_hi = _mm256_shuffle_epi8(bitvals_lookuphi, bitIndices_hi);
         __m256i bitVals = _mm256_add_epi64(bitVals_lo, bitVals_hi);
         __m256i nextPrimes = _mm256_add_epi64(bitVals, low_vec);
-        _mm256_storeu_si256(primes.data()+j, nextPrimes);
+        _mm256_storeu_si256((__m256i*)(primes.data()+j), nextPrimes);
           
         //primes[j+0] = nextPrime(bits, low); bits &= bits - 1;
         //primes[j+1] = nextPrime(bits, low); bits &= bits - 1;
