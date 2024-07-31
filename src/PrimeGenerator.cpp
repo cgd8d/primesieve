@@ -423,6 +423,23 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     uint64_t sieveSize = sieve_.size();
     uint8_t* sieve = sieve_.data();
 
+    // Create bitvals helper register for AVX.
+    uint64_t bitvals64_0 =
+      ( 7ull     ) +
+      (11ull << 1) +
+      (13ull << 2) +
+      (17ull << 3) +
+      (23ull << 4) +
+      (29ull << 5) +
+      (31ull << 6) +
+      (33ull << 7);
+    // Generate subsequent values by adding
+    // multiples of 30 (= 1e) to each byte value.
+    uint64_t bitvals_step = 0x1e1e1e1e1e1e1e1eULL;
+    uint64_t bitvals64_1 = bitvals64_0 + bitvals_step;
+    __m128i bitvals_half = _mm_set_epi64x(bitvals64_1, bitvals64_0); // may not be VEX coded
+    __m256i bitvals = _mm256_set_m128i(bitvals_half, bitvals_half);
+
     // Fill the buffer with at least (maxSize - 64) primes.
     // Each loop iteration can generate up to 64 primes
     // so we have to stop generating primes once there is
