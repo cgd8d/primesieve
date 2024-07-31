@@ -489,7 +489,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         std::cout<< "bitindex1 = " << bitIndex1 << " --> p = " << primes[j+1]<<std::endl;
         std::cout<< "bitindex2 = " << bitIndex2 << " --> p = " << primes[j+2]<<std::endl;
         std::cout<< "bitindex3 = " << bitIndex3 << " --> p = " << primes[j+3]<<std::endl;
-        std::cout<<std:endl;
+        std::cout<<std::endl;
           
         //primes[j+0] = nextPrime(bits, low); bits &= bits - 1;
         //primes[j+1] = nextPrime(bits, low); bits &= bits - 1;
