@@ -34,7 +34,6 @@
 #include <stdint.h>
 #include <algorithm>
 #include <limits>
-#include <iostream>
 
 #if defined(ENABLE_AVX512_VBMI2) || \
     defined(ENABLE_MULTIARCH_AVX512_VBMI2)
@@ -482,28 +481,17 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         // disable legacy SSE and use VEX-coded equivalents. 
         __m256i bitIndices = _mm256_set_epi64x(bitIndex3, bitIndex2, bitIndex1, bitIndex0);
         __m256i bitIndices_hi = _mm256_srli_epi64(bitIndices, 4);
-        __m256i bitVals_lo = _mm256_shuffle_epi8(bitvals_lookup, bitIndices);
+        __m256i bitVals_lo_um = _mm256_shuffle_epi8(bitvals_lookup, bitIndices);
+        __m256i bitVals_lo = _mm256_and_si256(bitVals_lo_um, mask_bitvals);
         __m256i bitVals_hi = _mm256_shuffle_epi8(bitvals_lookuphi, bitIndices_hi);
-        __m256i bitVals_um = _mm256_add_epi64(bitVals_lo, bitVals_hi);
-        __m256i bitVals = _mm256_and_si256(bitVals_um, mask_bitvals);
+        __m256i bitVals = _mm256_add_epi64(bitVals_lo, bitVals_hi);
         __m256i nextPrimes = _mm256_add_epi64(bitVals, low_vec);
         _mm256_storeu_si256((__m256i*)(primes.data()+j), nextPrimes);
 
-        /*std::cout<< "with low = "<<low<<":"<<std::endl;
-        std::cout<< "bitindex0 = " << bitIndex0 << " --> p = " << primes[j+0]<<std::endl;
-        std::cout<< "bitindex1 = " << bitIndex1 << " --> p = " << primes[j+1]<<std::endl;
-        std::cout<< "bitindex2 = " << bitIndex2 << " --> p = " << primes[j+2]<<std::endl;
-        std::cout<< "bitindex3 = " << bitIndex3 << " --> p = " << primes[j+3]<<std::endl;
-        std::cout<<std::endl;*/
-          
-        //primes[j+0] = nextPrime(bits, low); bits &= bits - 1;
-        //primes[j+1] = nextPrime(bits, low); bits &= bits - 1;
-        //primes[j+2] = nextPrime(bits, low); bits &= bits - 1;
-        //primes[j+3] = nextPrime(bits, low); bits &= bits - 1;
         j += 4;
       }
-      while (j < i);
-//std::exit(0);
+      while (bits);
+
       low += 8 * 30;
       sieveIdx += 8;
     }
