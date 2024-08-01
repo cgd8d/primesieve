@@ -460,19 +460,25 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     do
     {
       uint64_t bits = littleendian_cast<uint64_t>(&sieve[sieveIdx]);
+      uint64_t bits_lz = bits;
       std::size_t j = i;
       size_t pc = popcnt64(bits);
       i += pc;
+      size_t lz_idx = i-1;
 
       // Make vector of value low.
       __m256i low_vec = _mm256_set1_epi64x(low);
 
-      for(size_t iter = (pc+3)/4; iter != 0; iter--)
+      for(size_t iter = (pc+4)/5; iter != 0; iter--)
       {
         auto bitIndex0 = ctz64(bits); bits &= bits - 1;
         auto bitIndex1 = ctz64(bits); bits &= bits - 1;
         auto bitIndex2 = ctz64(bits); bits &= bits - 1;
         auto bitIndex3 = ctz64(bits); bits &= bits - 1;
+
+        auto bitIndex4 = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndex4);
+        primes[lz_idx--] = low + bitValues[bitIndex4];
 
         // Load bit indices into ymm register. 
         // Warning: if a compiler implements this
