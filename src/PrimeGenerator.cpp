@@ -461,12 +461,13 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     {
       uint64_t bits = littleendian_cast<uint64_t>(&sieve[sieveIdx]);
       std::size_t j = i;
-      i += popcnt64(bits);
+      size_t pc = popcnt64(bits);
+      i += pc;
 
       // Make vector of value low.
       __m256i low_vec = _mm256_set1_epi64x(low);
 
-      do
+      for(size_t iter = (pc+3)/4; iter != 0; iter--)
       {
         auto bitIndex0 = ctz64(bits); bits &= bits - 1;
         auto bitIndex1 = ctz64(bits); bits &= bits - 1;
@@ -490,7 +491,6 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
 
         j += 4;
       }
-      while (bits);
 
       low += 8 * 30;
       sieveIdx += 8;
