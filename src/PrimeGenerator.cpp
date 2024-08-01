@@ -426,14 +426,14 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
 
     // Create bitvals_lookup helper register for AVX.
     uint64_t bitvals64_0 =
-      ( 7ull     ) +
-      (11ull << 1) +
-      (13ull << 2) +
-      (17ull << 3) +
-      (23ull << 4) +
-      (29ull << 5) +
-      (31ull << 6) +
-      (33ull << 7);
+      ( 7ull      ) +
+      (11ull <<  8) +
+      (13ull << 16) +
+      (17ull << 24) +
+      (23ull << 32) +
+      (29ull << 40) +
+      (31ull << 48) +
+      (33ull << 56);
     // Generate subsequent values by adding
     // multiples of 30 (= 1e) to each byte value.
     uint64_t bitvals_step = 0x1e1e1e1e1e1e1e1eULL;
@@ -449,6 +449,10 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       0, 0, 0, 0,
       (char)180, 120, 60, 0);
     __m256i bitvals_lookuphi = _mm256_set_m128i(bitvals_lookuphi_half, bitvals_lookuphi_half);
+
+    // Finally create logical mask to suppress
+    // unintended byes. 
+    __m256i mask_bitvals = _mm256_set1_epi64x(0xFF);
 
     // Fill the buffer with at least (maxSize - 64) primes.
     // Each loop iteration can generate up to 64 primes
@@ -480,16 +484,17 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         __m256i bitIndices_hi = _mm256_srli_epi64(bitIndices, 4);
         __m256i bitVals_lo = _mm256_shuffle_epi8(bitvals_lookup, bitIndices);
         __m256i bitVals_hi = _mm256_shuffle_epi8(bitvals_lookuphi, bitIndices_hi);
-        __m256i bitVals = _mm256_add_epi64(bitVals_lo, bitVals_hi);
+        __m256i bitVals_um = _mm256_add_epi64(bitVals_lo, bitVals_hi);
+        __m256i bitVals = _mm256_and_si256(bitVals_um, mask_bitvals);
         __m256i nextPrimes = _mm256_add_epi64(bitVals, low_vec);
         _mm256_storeu_si256((__m256i*)(primes.data()+j), nextPrimes);
 
-        std::cout<< "with low = "<<low<<":"<<std::endl;
+        /*std::cout<< "with low = "<<low<<":"<<std::endl;
         std::cout<< "bitindex0 = " << bitIndex0 << " --> p = " << primes[j+0]<<std::endl;
         std::cout<< "bitindex1 = " << bitIndex1 << " --> p = " << primes[j+1]<<std::endl;
         std::cout<< "bitindex2 = " << bitIndex2 << " --> p = " << primes[j+2]<<std::endl;
         std::cout<< "bitindex3 = " << bitIndex3 << " --> p = " << primes[j+3]<<std::endl;
-        std::cout<<std::endl;
+        std::cout<<std::endl;*/
           
         //primes[j+0] = nextPrime(bits, low); bits &= bits - 1;
         //primes[j+1] = nextPrime(bits, low); bits &= bits - 1;
