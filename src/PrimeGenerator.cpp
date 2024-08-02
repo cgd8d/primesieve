@@ -449,9 +449,17 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       (char)180, 120, 60, 0);
     __m256i bitvals_lookuphi = _mm256_set_m128i(bitvals_lookuphi_half, bitvals_lookuphi_half);
 
+    // Pregenerate the shuffle indices that select out
+    // groups of bit values. 
+    __m128i idx_ungroup_tail_half = _mm_set_epi64x(12, 4);
+    __m256i idx_ungroup_tail = _mm256_set_m128i(idx_ungroup_tail_half, idx_ungroup_tail_half);
+    __m128i idx_ungroup_lead_half = _mm_set_epi64x(8, 0);
+    __m256i idx_ungroup_lead = _mm256_set_m128i(idx_ungroup_lead_half, idx_ungroup_lead_half);
+      
     // Finally create logical mask to suppress
     // unintended byes. 
     __m256i mask_bitvals = _mm256_set1_epi64x(0xFF);
+    //__m256i mask_bitvals = _mm256_set1_epi32(0xFF);
 
     // Fill the buffer with at least (maxSize - 64) primes.
     // Each loop iteration can generate up to 64 primes
@@ -464,21 +472,38 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       std::size_t j = i;
       size_t pc = popcnt64(bits);
       i += pc;
-      size_t lz_idx = i-1;
+      size_t lz_idx = i-4;
 
       // Make vector of value low.
       __m256i low_vec = _mm256_set1_epi64x(low);
 
-      for(size_t iter = (pc+4)/5; iter != 0; iter--)
+      if(pc < 4 and pc != 0)
+      {
+        while(j < i)
+        {
+          auto bitIndex = ctz64(bits); bits &= bits - 1;
+          primes[j++] = low + bitValues[bitIndex];
+        }
+      }
+      else
+      {
+
+      for(size_t iter = (pc+7)/8; iter != 0; iter--)
       {
         auto bitIndex0 = ctz64(bits); bits &= bits - 1;
         auto bitIndex1 = ctz64(bits); bits &= bits - 1;
         auto bitIndex2 = ctz64(bits); bits &= bits - 1;
         auto bitIndex3 = ctz64(bits); bits &= bits - 1;
 
-        auto bitIndex4 = 63ull xor __builtin_clzll(bits_lz);
-        bits_lz = _bzhi_u64(bits_lz, bitIndex4);
-        primes[lz_idx--] = low + bitValues[bitIndex4];
+        auto bitIndexZ = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexZ);
+        auto bitIndexY = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexY);
+        auto bitIndexX = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexX);
+        auto bitIndexW = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexW);
+        //primes[lz_idx--] = low + bitValues[bitIndex4];
 
         // Load bit indices into ymm register. 
         // Warning: if a compiler implements this
@@ -486,16 +511,33 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         // performance regression.  I believe that
         // compilers with AVX enabled will typically
         // disable legacy SSE and use VEX-coded equivalents. 
-        __m256i bitIndices = _mm256_set_epi64x(bitIndex3, bitIndex2, bitIndex1, bitIndex0);
-        __m256i bitIndices_hi = _mm256_srli_epi64(bitIndices, 4);
-        __m256i bitVals_lo_um = _mm256_shuffle_epi8(bitvals_lookup, bitIndices);
-        __m256i bitVals_lo = _mm256_and_si256(bitVals_lo_um, mask_bitvals);
+        //__m256i bitIndices = _mm256_set_epi64x(bitIndex3, bitIndex2, bitIndex1, bitIndex0);
+        __m256i bitIndices = _mm256_set_epi32(
+          bitIndex3, bitIndexZ, bitIndex2, bitIndexY, // high half
+          bitIndex1, bitIndexX, bitIndex0, bitIndexW // low half
+          );
+
+        // look up offset values from bit positions
+        __m256i bitIndices_hi = _mm256_srli_epi32(bitIndices, 4);
+        __m256i bitVals_lo = _mm256_shuffle_epi8(bitvals_lookup, bitIndices);
+        //__m256i bitVals_lo = _mm256_and_si256(bitVals_lo_um, mask_bitvals);
         __m256i bitVals_hi = _mm256_shuffle_epi8(bitvals_lookuphi, bitIndices_hi);
         __m256i bitVals = _mm256_add_epi64(bitVals_lo, bitVals_hi);
-        __m256i nextPrimes = _mm256_add_epi64(bitVals, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+j), nextPrimes);
+
+        // extract lead and tail bits in groups of 4,
+        // add low, and store. 
+        __m256i bitVals_lead_um = _mm256_shuffle_epi8(bitVals, idx_ungroup_lead);
+        __m256i bitVals_lead = _mm256_and_si256(bitVals_lead_um, mask_bitvals);
+        __m256i nextPrimes_lead = _mm256_add_epi64(bitVals_lead, low_vec);
+        _mm256_storeu_si256((__m256i*)(primes.data()+lz_idx), nextPrimes_lead);
+        __m256i bitVals_tail_um = _mm256_shuffle_epi8(bitVals, idx_ungroup_tail);
+        __m256i bitVals_tail = _mm256_and_si256(bitVals_tail_um, mask_bitvals);
+        __m256i nextPrimes_tail = _mm256_add_epi64(bitVals_tail, low_vec);
+        _mm256_storeu_si256((__m256i*)(primes.data()+j), nextPrimes_tail);
 
         j += 4;
+        lz_idx -= 4;
+      }
       }
 
       low += 8 * 30;
