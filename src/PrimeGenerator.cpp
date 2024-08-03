@@ -35,7 +35,7 @@
 #include <algorithm>
 #include <limits>
 
-//#include <iostream>
+#include <iostream>
 
 #if defined(ENABLE_AVX512_VBMI2) || \
     defined(ENABLE_MULTIARCH_AVX512_VBMI2)
@@ -396,6 +396,28 @@ void PrimeGenerator::fillPrevPrimes(Vector<uint64_t>& primes,
   }
 }
 
+
+struct TestHist
+{
+  std::vector<uint64_t> v;
+  uint64_t t;
+
+  TestHist()
+{
+    v.assign(65,0);
+    t=0;
+}
+
+~TestHist()
+{
+    std::cout<< "Hist results ("<<t<<" total hits):"<<std::endl;
+    for(size_t i=0;i<65;i++){
+        std::cout<<i<<"\t: "<<100*double(v[i])/t<<std::endl;
+    }
+}
+};
+TestHist aTestHist;
+
 #if defined(ENABLE_DEFAULT)
 
 /// This method is used by iterator::next_prime().
@@ -474,6 +496,8 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       size_t pc = popcnt64(bits);
       i += pc;
       //size_t lz_idx = i-4;
+      aTestHist.t++;
+      aTestHist.v[pc]++;
 
       // Make vector of value low.
       __m256i low_vec = _mm256_set1_epi64x(low);
