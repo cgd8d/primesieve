@@ -493,7 +493,9 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       */
 
       //for(size_t iter = (pc+7)/8; iter != 0; iter--)
-      //{
+      size_t break_iter = (pc+3)/8;
+      for(size_t iter = 0; true; iter++)
+      {
         auto bitIndex0 = ctz64(bits); bits &= bits - 1;
         auto bitIndex1 = ctz64(bits); bits &= bits - 1;
         auto bitIndex2 = ctz64(bits); bits &= bits - 1;
@@ -506,7 +508,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         auto bitIndexX = 63ull xor __builtin_clzll(bits_lz);
         bits_lz = _bzhi_u64(bits_lz, bitIndexX);
         auto bitIndexW = 63ull xor __builtin_clzll(bits_lz);
-        //bits_lz = _bzhi_u64(bits_lz, bitIndexW);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexW);
         //primes[lz_idx--] = low + bitValues[bitIndex4];
 
         // Load bit indices into ymm register. 
@@ -542,8 +544,9 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         
         __m256i nextPrimes_tail = _mm256_add_epi64(bitVals_tail, low_vec);
         _mm256_storeu_si256((__m256i*)(primes.data()+j), nextPrimes_tail);
-        if(pc >= 4)
-        {
+        //if(pc >= 4)
+        if(iter == break_iter) break;
+        //{
         //__m256i bitVals_lead_um = _mm256_shuffle_epi8(bitVals, idx_ungroup_lead);
         //__m256i bitVals_lead = _mm256_and_si256(bitVals_lead_um, mask_bitvals);
 
@@ -556,13 +559,13 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         __m256i nextPrimes_lead = _mm256_add_epi64(bitVals_lead, low_vec);
         _mm256_storeu_si256((__m256i*)(primes.data()+i-4), nextPrimes_lead);
         
-        j += 4;
+        /*j += 4;
        for(size_t iter = 8; iter < pc; iter += 2)
         {
             primes[j  ] = nextPrime(bits, low); bits &= bits - 1;
             primes[j+1] = nextPrime(bits, low); bits &= bits - 1;
             j += 2;
-        }
+        }*/
        // jptr += 4;
        // lptr -= 4;
       //}
