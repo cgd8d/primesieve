@@ -35,6 +35,8 @@
 #include <algorithm>
 #include <limits>
 
+#include <iostream>
+
 #if defined(ENABLE_AVX512_VBMI2) || \
     defined(ENABLE_MULTIARCH_AVX512_VBMI2)
   #include <immintrin.h>
@@ -544,6 +546,12 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         
         __m256i nextPrimes_tail = _mm256_add_epi64(bitVals_tail, low_vec);
         _mm256_storeu_si256((__m256i*)(primes.data()+4*iter), nextPrimes_tail);
+
+        if(not std::is_sorted(primes.data()+4*iter, primes.data()+4*iter+4))
+        {
+            std::cout << "tail primes not sorted." << std::endl;
+            std::exit(1);
+        }
         //if(pc >= 4)
         if(iter == break_iter) break;
         //{
@@ -558,7 +566,11 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         );
         __m256i nextPrimes_lead = _mm256_add_epi64(bitVals_lead, low_vec);
         _mm256_storeu_si256((__m256i*)(primes.data()+i-4-4*iter), nextPrimes_lead);
-        
+        if(not std::is_sorted(primes.data()+i-4-4*iter, primes.data()+i-4*iter))
+        {
+            std::cout << "lead primes not sorted." << std::endl;
+            std::exit(1);
+        }
         /*j += 4;
        for(size_t iter = 8; iter < pc; iter += 2)
         {
@@ -570,6 +582,12 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
        // lptr -= 4;
       //}
       }
+
+    if(not std::is_sorted(primes.data()+i-pc, primes.data()+i))
+        {
+            std::cout << "group of primes not sorted." << std::endl;
+            std::exit(1);
+        }
 
       low += 8 * 30;
       sieveIdx += 8;
