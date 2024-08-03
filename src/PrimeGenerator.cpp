@@ -468,7 +468,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     {
       uint64_t bits = littleendian_cast<uint64_t>(&sieve[sieveIdx]);
       uint64_t bits_lz = bits;
-      std::size_t j = i;
+      //std::size_t j = i;
       size_t pc = popcnt64(bits);
       i += pc;
       //size_t lz_idx = i-4;
@@ -543,7 +543,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         );
         
         __m256i nextPrimes_tail = _mm256_add_epi64(bitVals_tail, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+j), nextPrimes_tail);
+        _mm256_storeu_si256((__m256i*)(primes.data()+4*iter), nextPrimes_tail);
         //if(pc >= 4)
         if(iter == break_iter) break;
         //{
@@ -557,7 +557,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
           bitValues[bitIndexW]
         );
         __m256i nextPrimes_lead = _mm256_add_epi64(bitVals_lead, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+i-4), nextPrimes_lead);
+        _mm256_storeu_si256((__m256i*)(primes.data()+i-4-4*iter), nextPrimes_lead);
         
         /*j += 4;
        for(size_t iter = 8; iter < pc; iter += 2)
