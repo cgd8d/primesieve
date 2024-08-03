@@ -543,9 +543,11 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         _mm256_storeu_si256((__m256i*)(primes.data()+i-4), nextPrimes_lead);
         
         j += 4;
-       for(size_t iter = 8; iter < pc; iter++)
+       for(size_t iter = 8; iter < pc; iter += 2)
         {
-            primes[j++] = nextPrime(bits, low); bits &= bits - 1;
+            primes[j  ] = nextPrime(bits, low); bits &= bits - 1;
+            primes[j+1] = nextPrime(bits, low); bits &= bits - 1;
+            j += 2;
         }
        // jptr += 4;
        // lptr -= 4;
