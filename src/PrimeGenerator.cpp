@@ -470,7 +470,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     {
       uint64_t bits = littleendian_cast<uint64_t>(&sieve[sieveIdx]);
       uint64_t bits_lz = bits;
-      //std::size_t j = i;
+      std::size_t j = i;
       size_t pc = popcnt64(bits);
       i += pc;
       //size_t lz_idx = i-4;
@@ -545,9 +545,9 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         );
         
         __m256i nextPrimes_tail = _mm256_add_epi64(bitVals_tail, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+4*iter), nextPrimes_tail);
+        _mm256_storeu_si256((__m256i*)(primes.data()+j+4*iter), nextPrimes_tail);
 
-        if(not std::is_sorted(primes.data()+4*iter, primes.data()+4*iter+4))
+        if(not std::is_sorted(primes.data()+j+4*iter, primes.data()+j+std::min(4*iter+4,pc)))
         {
             std::cout << "tail primes not sorted." << std::endl;
             std::exit(1);
