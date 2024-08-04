@@ -519,13 +519,19 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       */
 
       //for(size_t iter = (pc+7)/8; iter != 0; iter--)
-      size_t break_iter = (pc+3)/8;
-      for(size_t iter = 0; true; iter++)
-      {
+      //size_t break_iter = (pc+3)/8;
+      //for(size_t iter = 0; true; iter++)
+      //{
+
+        // Handle up to 14 primes in branchless code.
         auto bitIndex0 = ctz64(bits); bits &= bits - 1;
         auto bitIndex1 = ctz64(bits); bits &= bits - 1;
         auto bitIndex2 = ctz64(bits); bits &= bits - 1;
         auto bitIndex3 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex4 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex5 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex6 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex7 = ctz64(bits); bits &= bits - 1;
 
         auto bitIndexZ = 63ull xor __builtin_clzll(bits_lz);
         bits_lz = _bzhi_u64(bits_lz, bitIndexZ);
@@ -535,7 +541,33 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         bits_lz = _bzhi_u64(bits_lz, bitIndexX);
         auto bitIndexW = 63ull xor __builtin_clzll(bits_lz);
         bits_lz = _bzhi_u64(bits_lz, bitIndexW);
-        //primes[lz_idx--] = low + bitValues[bitIndex4];
+        auto bitIndexV = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexV);
+        auto bitIndexU = 63ull xor __builtin_clzll(bits_lz);
+        //bits_lz = _bzhi_u64(bits_lz, bitIndexU);
+
+        // Store 6 primes from lzcnt first.
+        // If pc<6 then we don't need these, 
+        // but to keep the code branch-free
+        // we use a destination address that
+        // will do no harm.
+        // Compiler should implement with
+        // branch-free cmov instruction.
+        size_t lz_dest = (pc < 6) ? j : i-6;
+        __m256i bitVals_lead1 = _mm256_set_epi64x(
+          bitValues[bitIndexZ],
+          bitValues[bitIndexY],
+          bitValues[bitIndexX],
+          bitValues[bitIndexW]
+        );
+        __m256i nextPrimes_lead1 = _mm256_add_epi64(bitVals_lead1, low_vec);
+        _mm256_storeu_si256((__m256i*)(primes.data()+lz_dest+2), nextPrimes_lead1);
+        __m128i bitVals_lead0 = _mm128_set_epi64x(
+          bitValues[bitIndexV],
+          bitValues[bitIndexU]
+        );
+        __m128i nextPrimes_lead0 = _mm128_add_epi64(bitVals_lead0, _mm256_castsi256_si128(low_vec));
+        _mm128_storeu_si128((__m128i*)(primes.data()+lz_dest), nextPrimes_lead0);
 
         // Load bit indices into ymm register. 
         // Warning: if a compiler implements this
@@ -561,15 +593,22 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         //__m256i bitVals_tail_um = _mm256_shuffle_epi8(bitVals, idx_ungroup_tail);
         //__m256i bitVals_tail = _mm256_and_si256(bitVals_tail_um, mask_bitvals);
 
-        __m256i bitVals_tail = _mm256_set_epi64x(
+        __m256i bitVals_tail0 = _mm256_set_epi64x(
           bitValues[bitIndex3],
           bitValues[bitIndex2],
           bitValues[bitIndex1],
           bitValues[bitIndex0]
         );
-        
-        __m256i nextPrimes_tail = _mm256_add_epi64(bitVals_tail, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+j+4*iter), nextPrimes_tail);
+        __m256i nextPrimes_tail0 = _mm256_add_epi64(bitVals_tail0, low_vec);
+        _mm256_storeu_si256((__m256i*)(primes.data()+j), nextPrimes_tail0);
+        __m256i bitVals_tail1 = _mm256_set_epi64x(
+          bitValues[bitIndex7],
+          bitValues[bitIndex6],
+          bitValues[bitIndex5],
+          bitValues[bitIndex4]
+        );
+        __m256i nextPrimes_tail1 = _mm256_add_epi64(bitVals_tail1, low_vec);
+        _mm256_storeu_si256((__m256i*)(primes.data()+j+4), nextPrimes_tail1);
 
         /*if(not std::is_sorted(primes.data()+j+4*iter, primes.data()+j+std::min(4*iter+4,pc)))
         {
@@ -577,19 +616,19 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
             std::exit(1);
         }*/
         //if(pc >= 4)
-        if(iter == break_iter) break;
+        //if(iter == break_iter) break;
         //{
         //__m256i bitVals_lead_um = _mm256_shuffle_epi8(bitVals, idx_ungroup_lead);
         //__m256i bitVals_lead = _mm256_and_si256(bitVals_lead_um, mask_bitvals);
 
-        __m256i bitVals_lead = _mm256_set_epi64x(
+        /*__m256i bitVals_lead = _mm256_set_epi64x(
           bitValues[bitIndexZ],
           bitValues[bitIndexY],
           bitValues[bitIndexX],
           bitValues[bitIndexW]
         );
         __m256i nextPrimes_lead = _mm256_add_epi64(bitVals_lead, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+i-4-4*iter), nextPrimes_lead);
+        _mm256_storeu_si256((__m256i*)(primes.data()+i-4-4*iter), nextPrimes_lead);*/
         /*if(not std::is_sorted(primes.data()+i-4-4*iter, primes.data()+i-4*iter))
         {
             std::cout << "lead primes not sorted." << std::endl;
@@ -605,6 +644,16 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
        // jptr += 4;
        // lptr -= 4;
       //}
+      //}
+
+      // We have handled up to 14 primes
+      // which is usually enough. 
+      // In the unlikely event that it
+      // isn't, use this code (almost surely
+      // triggering branch misprediction).
+      for(size_t iter = 0; iter + 14 < pc; iter++)
+      {
+        primes[j+8+iter] = nextPrime(bits, low); bits &= bits - 1;
       }
 
     /*if(not std::is_sorted(primes.data()+i-pc, primes.data()+i))
