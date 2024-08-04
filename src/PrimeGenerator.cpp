@@ -562,12 +562,12 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         );
         __m256i nextPrimes_lead1 = _mm256_add_epi64(bitVals_lead1, low_vec);
         _mm256_storeu_si256((__m256i*)(primes.data()+lz_dest+2), nextPrimes_lead1);
-        __m128i bitVals_lead0 = _mm128_set_epi64x(
+        __m128i bitVals_lead0 = _mm_set_epi64x(
           bitValues[bitIndexV],
           bitValues[bitIndexU]
         );
-        __m128i nextPrimes_lead0 = _mm128_add_epi64(bitVals_lead0, _mm256_castsi256_si128(low_vec));
-        _mm128_storeu_si128((__m128i*)(primes.data()+lz_dest), nextPrimes_lead0);
+        __m128i nextPrimes_lead0 = _mm_add_epi64(bitVals_lead0, _mm256_castsi256_si128(low_vec));
+        _mm_storeu_si128((__m128i*)(primes.data()+lz_dest), nextPrimes_lead0);
 
         // Load bit indices into ymm register. 
         // Warning: if a compiler implements this
