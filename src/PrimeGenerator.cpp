@@ -496,8 +496,8 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       size_t pc = popcnt64(bits);
       i += pc;
       //size_t lz_idx = i-4;
-      aTestHist.t++;
-      aTestHist.v[pc]++;
+      //aTestHist.t++;
+      //aTestHist.v[pc]++;
 
       // Make vector of value low.
       __m256i low_vec = _mm256_set1_epi64x(low);
@@ -531,7 +531,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         auto bitIndex4 = ctz64(bits); bits &= bits - 1;
         auto bitIndex5 = ctz64(bits); bits &= bits - 1;
         auto bitIndex6 = ctz64(bits); bits &= bits - 1;
-        auto bitIndex7 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex7 = ctz64(bits); //bits &= bits - 1;
 
         auto bitIndexZ = 63ull xor __builtin_clzll(bits_lz);
         bits_lz = _bzhi_u64(bits_lz, bitIndexZ);
@@ -653,7 +653,9 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       // triggering branch misprediction).
       for(size_t iter = 0; iter + 14 < pc; iter++)
       {
-        primes[j+8+iter] = nextPrime(bits, low); bits &= bits - 1;
+        bits &= bits - 1;
+        auto bitIndex = ctz64(bits);
+        primes[j+8+iter] = low + bitValues[bitIndex];// nextPrime(bits, low); bits &= bits - 1;
       }
 
     /*if(not std::is_sorted(primes.data()+i-pc, primes.data()+i))
