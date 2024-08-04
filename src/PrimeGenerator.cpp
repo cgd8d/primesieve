@@ -442,10 +442,13 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     std::size_t i = *size;
     std::size_t maxSize = primes.size();
     ASSERT(i + 64 <= maxSize);
-    uint64_t low = low_;
+    //uint64_t low = low_;
     uint64_t sieveIdx = sieveIdx_;
     uint64_t sieveSize = sieve_.size();
     uint8_t* sieve = sieve_.data();
+
+    __m256i low_vec = _mm256_set1_epi64x(low_);
+    __m256i low_step = _mm256_set1_epi64x(8 * 30);
 
     // Create bitvals_lookup helper register for AVX.
     /*uint64_t bitvals64_0 =
@@ -500,7 +503,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       //aTestHist.v[pc]++;
 
       // Make vector of value low.
-      __m256i low_vec = _mm256_set1_epi64x(low);
+      //__m256i low_vec = _mm256_set1_epi64x(low);
 
       /*
       if(pc < 4 and pc != 0)
@@ -528,10 +531,20 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         auto bitIndex1 = ctz64(bits); bits &= bits - 1;
         auto bitIndex2 = ctz64(bits); bits &= bits - 1;
         auto bitIndex3 = ctz64(bits); bits &= bits - 1;
+
+        __m256i bitVals_tail0 = _mm256_set_epi64x(
+          bitValues[bitIndex3],
+          bitValues[bitIndex2],
+          bitValues[bitIndex1],
+          bitValues[bitIndex0]
+        );
+        
         auto bitIndex4 = ctz64(bits); bits &= bits - 1;
         auto bitIndex5 = ctz64(bits); bits &= bits - 1;
         auto bitIndex6 = ctz64(bits); bits &= bits - 1;
         auto bitIndex7 = ctz64(bits); //bits &= bits - 1;
+
+        
 
         auto bitIndexZ = 63ull xor __builtin_clzll(bits_lz);
         bits_lz = _bzhi_u64(bits_lz, bitIndexZ);
@@ -593,12 +606,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         //__m256i bitVals_tail_um = _mm256_shuffle_epi8(bitVals, idx_ungroup_tail);
         //__m256i bitVals_tail = _mm256_and_si256(bitVals_tail_um, mask_bitvals);
 
-        __m256i bitVals_tail0 = _mm256_set_epi64x(
-          bitValues[bitIndex3],
-          bitValues[bitIndex2],
-          bitValues[bitIndex1],
-          bitValues[bitIndex0]
-        );
+        
         __m256i nextPrimes_tail0 = _mm256_add_epi64(bitVals_tail0, low_vec);
         _mm256_storeu_si256((__m256i*)(primes.data()+j), nextPrimes_tail0);
         __m256i bitVals_tail1 = _mm256_set_epi64x(
@@ -651,11 +659,12 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       // In the unlikely event that it
       // isn't, use this code (almost surely
       // triggering branch misprediction).
-      for(size_t iter = 0; iter + 14 < pc; iter++)
+      for(size_t iter = 0; iter + 14 < pc; iter++) [[unlikely]]
       {
         bits &= bits - 1;
         auto bitIndex = ctz64(bits);
-        primes[j+8+iter] = low + bitValues[bitIndex];// nextPrime(bits, low); bits &= bits - 1;
+        uint64_t this_low = _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
+        primes[j+8+iter] = this_low + bitValues[bitIndex];// nextPrime(bits, low); bits &= bits - 1;
       }
 
     /*if(not std::is_sorted(primes.data()+i-pc, primes.data()+i))
@@ -664,7 +673,10 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
             std::exit(1);
         }*/
 
-      low += 8 * 30;
+      //low += 8 * 30;
+
+      low_vec = _mm256_add_epi64(low_vec, low_step);
+        
       sieveIdx += 8;
     }
     while (i <= maxSize - 64 &&
@@ -675,7 +687,9 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     // on many processors.
     _mm256_zeroupper();
 
-    low_ = low;
+    //low_ = low;
+
+    low_ = _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
     sieveIdx_ = sieveIdx;
     *size = i;
   }
