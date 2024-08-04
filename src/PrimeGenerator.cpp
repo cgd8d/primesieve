@@ -526,28 +526,6 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       //for(size_t iter = 0; true; iter++)
       //{
 
-        // Handle up to 14 primes in branchless code.
-        auto bitIndex0 = ctz64(bits); bits &= bits - 1;
-        auto bitIndex1 = ctz64(bits); bits &= bits - 1;
-        auto bitIndex2 = ctz64(bits); bits &= bits - 1;
-        auto bitIndex3 = ctz64(bits); bits &= bits - 1;
-        __m256i bitVals_tail0 = _mm256_set_epi64x(
-          bitValues[bitIndex3],
-          bitValues[bitIndex2],
-          bitValues[bitIndex1],
-          bitValues[bitIndex0]
-        );
-        
-        auto bitIndex4 = ctz64(bits); bits &= bits - 1;
-        auto bitIndex5 = ctz64(bits); bits &= bits - 1;
-        auto bitIndex6 = ctz64(bits); bits &= bits - 1;
-        auto bitIndex7 = ctz64(bits); //bits &= bits - 1;
-        __m256i bitVals_tail1 = _mm256_set_epi64x(
-          bitValues[bitIndex7],
-          bitValues[bitIndex6],
-          bitValues[bitIndex5],
-          bitValues[bitIndex4]
-        );
         
 
         auto bitIndexZ = 63ull xor __builtin_clzll(bits_lz);
@@ -563,12 +541,44 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
           bitValues[bitIndexX],
           bitValues[bitIndexW]
         );
-        
+
+        // Handle up to 14 primes in branchless code.
+        auto bitIndex0 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex1 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex2 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex3 = ctz64(bits); bits &= bits - 1;
+        __m256i bitVals_tail0 = _mm256_set_epi64x(
+          bitValues[bitIndex3],
+          bitValues[bitIndex2],
+          bitValues[bitIndex1],
+          bitValues[bitIndex0]
+        );
+
         bits_lz = _bzhi_u64(bits_lz, bitIndexW);
         auto bitIndexV = 63ull xor __builtin_clzll(bits_lz);
         bits_lz = _bzhi_u64(bits_lz, bitIndexV);
         auto bitIndexU = 63ull xor __builtin_clzll(bits_lz);
         //bits_lz = _bzhi_u64(bits_lz, bitIndexU);
+        __m128i bitVals_lead0 = _mm_set_epi64x(
+          bitValues[bitIndexV],
+          bitValues[bitIndexU]
+        );
+        
+        auto bitIndex4 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex5 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex6 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex7 = ctz64(bits); //bits &= bits - 1;
+        __m256i bitVals_tail1 = _mm256_set_epi64x(
+          bitValues[bitIndex7],
+          bitValues[bitIndex6],
+          bitValues[bitIndex5],
+          bitValues[bitIndex4]
+        );
+        
+
+        
+        
+        
 
         // Store 6 primes from lzcnt first.
         // If pc<6 then we don't need these, 
@@ -581,10 +591,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         
         __m256i nextPrimes_lead1 = _mm256_add_epi64(bitVals_lead1, low_vec);
         _mm256_storeu_si256((__m256i*)(primes.data()+lz_dest+2), nextPrimes_lead1);
-        __m128i bitVals_lead0 = _mm_set_epi64x(
-          bitValues[bitIndexV],
-          bitValues[bitIndexU]
-        );
+        
         __m128i nextPrimes_lead0 = _mm_add_epi64(bitVals_lead0, _mm256_castsi256_si128(low_vec));
         _mm_storeu_si128((__m128i*)(primes.data()+lz_dest), nextPrimes_lead0);
 
