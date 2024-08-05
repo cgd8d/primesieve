@@ -561,6 +561,10 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         auto bitIndexX = 63ull xor __builtin_clzll(bits_lz);
         bits_lz = _bzhi_u64(bits_lz, bitIndexX);
         auto bitIndex2 = ctz64(bits); bits &= bits - 1;
+
+        __m128i bitVals_tail0_hi = _mm_cvtsi64_si128(
+          bitValues[bitIndex2]
+        );
         
         auto bitIndexW = 63ull xor __builtin_clzll(bits_lz);
         auto bitIndex3 = ctz64(bits); bits &= bits - 1;
@@ -569,10 +573,14 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
           bitValues[bitIndexX],
           bitValues[bitIndexW]
         );
-        __m128i bitVals_tail0_hi = _mm_set_epi64x(
+        bitVals_tail0_hi = _mm_insert_epi64(
+          bitVals_tail0_hi,
+          bitValues[bitIndex3],
+          1);
+        /*__m128i bitVals_tail0_hi = _mm_set_epi64x(
           bitValues[bitIndex3],
           bitValues[bitIndex2]
-        );
+        );*/
 
         __m256i bitVals_lead1 = _mm256_set_m128i(
           bitVals_lead1_hi,
