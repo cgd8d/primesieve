@@ -724,12 +724,15 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       // In the unlikely event that it
       // isn't, use this code (almost surely
       // triggering branch misprediction).
-      for(size_t iter = 0; iter + 14 < pc; iter++) [[unlikely]]
+      if(pc > 14) [[unlikely]]
       {
-        bits &= bits - 1;
-        auto bitIndex = ctz64(bits);
-        uint64_t this_low = _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
-        primes[i+8+iter] = this_low + bitValues[bitIndex];// nextPrime(bits, low); bits &= bits - 1;
+        for(size_t iter = 0; iter + 14 < pc; iter++)
+        {
+          bits &= bits - 1;
+          auto bitIndex = ctz64(bits);
+          uint64_t this_low = _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
+          primes[i+8+iter] = this_low + bitValues[bitIndex];// nextPrime(bits, low); bits &= bits - 1;
+        }
       }
 
     /*if(not std::is_sorted(primes.data()+i-pc, primes.data()+i))
