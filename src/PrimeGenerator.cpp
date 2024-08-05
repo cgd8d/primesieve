@@ -495,9 +495,9 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
     {
       uint64_t bits = littleendian_cast<uint64_t>(&sieve[sieveIdx]);
       uint64_t bits_lz = bits;
-      std::size_t j = i;
+      //std::size_t j = i;
       size_t pc = popcnt64(bits);
-      i += pc;
+      //i += pc;
       //size_t lz_idx = i-4;
       //aTestHist.t++;
       //aTestHist.v[pc]++;
@@ -597,6 +597,20 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
           bitValues[bitIndex0]
         );*/
 
+        // Store 6 primes from lzcnt first.
+        // If pc<6 then we don't need these, 
+        // but to keep the code branch-free
+        // we use a destination address that
+        // will do no harm.
+        // Compiler should implement with
+        // branch-free cmov instruction.
+        size_t lz_dest = (pc < 6) ? i : i+pc-6;
+        
+        __m256i nextPrimes_lead1 = _mm256_add_epi64(bitVals_lead1, low_vec);
+        _mm256_storeu_si256((__m256i*)(primes.data()+lz_dest+2), nextPrimes_lead1);
+
+        
+
 
         auto bitIndex4 = ctz64(bits); bits &= bits - 1;
         bits_lz = _bzhi_u64(bits_lz, bitIndexW);
@@ -626,18 +640,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         
         
 
-        // Store 6 primes from lzcnt first.
-        // If pc<6 then we don't need these, 
-        // but to keep the code branch-free
-        // we use a destination address that
-        // will do no harm.
-        // Compiler should implement with
-        // branch-free cmov instruction.
-        size_t lz_dest = (pc < 6) ? j : i-6;
-        
-        __m256i nextPrimes_lead1 = _mm256_add_epi64(bitVals_lead1, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+lz_dest+2), nextPrimes_lead1);
-        
+                
         __m128i nextPrimes_lead0 = _mm_add_epi64(bitVals_lead0, _mm256_castsi256_si128(low_vec));
         _mm_storeu_si128((__m128i*)(primes.data()+lz_dest), nextPrimes_lead0);
 
@@ -667,10 +670,10 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
 
         
         __m256i nextPrimes_tail0 = _mm256_add_epi64(bitVals_tail0, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+j), nextPrimes_tail0);
+        _mm256_storeu_si256((__m256i*)(primes.data()+i), nextPrimes_tail0);
         
         __m256i nextPrimes_tail1 = _mm256_add_epi64(bitVals_tail1, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+j+4), nextPrimes_tail1);
+        _mm256_storeu_si256((__m256i*)(primes.data()+i+4), nextPrimes_tail1);
 
         /*if(not std::is_sorted(primes.data()+j+4*iter, primes.data()+j+std::min(4*iter+4,pc)))
         {
@@ -718,7 +721,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         bits &= bits - 1;
         auto bitIndex = ctz64(bits);
         uint64_t this_low = _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
-        primes[j+8+iter] = this_low + bitValues[bitIndex];// nextPrime(bits, low); bits &= bits - 1;
+        primes[i+8+iter] = this_low + bitValues[bitIndex];// nextPrime(bits, low); bits &= bits - 1;
       }
 
     /*if(not std::is_sorted(primes.data()+i-pc, primes.data()+i))
@@ -730,7 +733,8 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       //low += 8 * 30;
 
       low_vec = _mm256_add_epi64(low_vec, low_step);
-        
+
+      i += pc;
       sieveIdx += 8;
     }
     while (i <= maxSize - 64 &&
