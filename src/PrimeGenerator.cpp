@@ -540,6 +540,15 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         auto bitIndexY = 63ull xor __builtin_clzll(bits_lz);
         bits_lz = _bzhi_u64(bits_lz, bitIndexY);
         auto bitIndex1 = ctz64(bits); bits &= bits - 1;
+
+        __m128i bitVals_lead1_hi = _mm_set_epi64x(
+          bitValues[bitIndexZ],
+          bitValues[bitIndexY]
+        );
+        __m128i bitVals_tail0_lo = _mm_set_epi64x(
+          bitValues[bitIndex1],
+          bitValues[bitIndex0]
+        );
         
         auto bitIndexX = 63ull xor __builtin_clzll(bits_lz);
         bits_lz = _bzhi_u64(bits_lz, bitIndexX);
@@ -547,7 +556,26 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         
         auto bitIndexW = 63ull xor __builtin_clzll(bits_lz);
         auto bitIndex3 = ctz64(bits); bits &= bits - 1;
+
+        __m128i bitVals_lead1_lo = _mm_set_epi64x(
+          bitValues[bitIndexX],
+          bitValues[bitIndexW]
+        );
+        __m128i bitVals_tail0_hi = _mm_set_epi64x(
+          bitValues[bitIndex3],
+          bitValues[bitIndex2]
+        );
+
+        __m256i bitVals_lead1 = _mm256_set_m128i(
+          bitVals_lead1_hi,
+          bitVals_lead1_lo
+        );
+        __m256i bitVals_tail0 = _mm256_set_m128i(
+          bitVals_tail0_hi,
+          bitVals_tail0_lo
+        );
         
+        /*
         __m256i bitVals_lead1 = _mm256_set_epi64x(
           bitValues[bitIndexZ],
           bitValues[bitIndexY],
@@ -559,7 +587,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
           bitValues[bitIndex2],
           bitValues[bitIndex1],
           bitValues[bitIndex0]
-        );
+        );*/
 
 
         auto bitIndex4 = ctz64(bits); bits &= bits - 1;
