@@ -439,9 +439,12 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
 
     // Use local variables to prevent the compiler from
     // writing temporary results to memory.
-    std::size_t i = *size;
-    std::size_t maxSize = primes.size();
-    ASSERT(i + 64 <= maxSize);
+    //std::size_t i = *size;
+    //std::size_t maxSize = primes.size();
+    uint64_t* prime_ptr = primes.data() + *size;
+    uint64_t* prime_end = primes.data() + primes.size();
+    //ASSERT(i + 64 <= maxSize);
+    ASSERT(std::distance(prime_ptr, prime_end) >= 64);
     //uint64_t low = low_;
     uint64_t sieveIdx = sieveIdx_;
     uint64_t sieveSize = sieve_.size();
@@ -612,10 +615,10 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         // will do no harm.
         // Compiler should implement with
         // branch-free cmov instruction.
-        size_t lz_dest = (pc < 6) ? i : i+pc-6;
+        size_t lz_dest = (pc < 6) ? 0 : pc-6;
         
         __m256i nextPrimes_lead1 = _mm256_add_epi64(bitVals_lead1, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+lz_dest+2), nextPrimes_lead1);
+        _mm256_storeu_si256((__m256i*)(prime_ptr+lz_dest+2), nextPrimes_lead1);
 
         
 
@@ -650,7 +653,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
 
                 
         __m128i nextPrimes_lead0 = _mm_add_epi64(bitVals_lead0, _mm256_castsi256_si128(low_vec));
-        _mm_storeu_si128((__m128i*)(primes.data()+lz_dest), nextPrimes_lead0);
+        _mm_storeu_si128((__m128i*)(prime_ptr+lz_dest), nextPrimes_lead0);
 
         // Load bit indices into ymm register. 
         // Warning: if a compiler implements this
@@ -678,10 +681,10 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
 
         
         __m256i nextPrimes_tail0 = _mm256_add_epi64(bitVals_tail0, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+i), nextPrimes_tail0);
+        _mm256_storeu_si256((__m256i*)(prime_ptr), nextPrimes_tail0);
         
         __m256i nextPrimes_tail1 = _mm256_add_epi64(bitVals_tail1, low_vec);
-        _mm256_storeu_si256((__m256i*)(primes.data()+i+4), nextPrimes_tail1);
+        _mm256_storeu_si256((__m256i*)(prime_ptr+4), nextPrimes_tail1);
 
         /*if(not std::is_sorted(primes.data()+j+4*iter, primes.data()+j+std::min(4*iter+4,pc)))
         {
@@ -731,7 +734,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
           bits &= bits - 1;
           auto bitIndex = ctz64(bits);
           uint64_t this_low = _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
-          primes[i+8+iter] = this_low + bitValues[bitIndex];// nextPrime(bits, low); bits &= bits - 1;
+          prime_ptr[8+iter] = this_low + bitValues[bitIndex];// nextPrime(bits, low); bits &= bits - 1;
         }
       }
 
@@ -745,10 +748,10 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
 
       low_vec = _mm256_add_epi64(low_vec, low_step);
 
-      i += pc;
+      prime_ptr += pc;
       sieveIdx += 8;
     }
-    while (i <= maxSize - 64 &&
+    while (std::distance(prime_ptr, prime_end) >= 64 &&
            sieveIdx < sieveSize);
 
     // Recommended to avoid mixing SSE and
@@ -760,7 +763,7 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
 
     low_ = _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
     sieveIdx_ = sieveIdx;
-    *size = i;
+    *size = std::distance(primes.data(), prime_ptr);
   }
   while (*size == 0);
 }
