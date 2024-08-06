@@ -608,17 +608,17 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
           bitValues[bitIndex0]
         );*/
 
-        // Store 6 primes from lzcnt first.
-        // If pc<6 then we don't need these, 
+        // Store 5 primes from lzcnt first.
+        // If pc<5 then we don't need these, 
         // but to keep the code branch-free
         // we use a destination address that
         // will do no harm.
         // Compiler should implement with
         // branch-free cmov instruction.
-        size_t lz_dest = (pc < 6) ? 0 : pc-6;
+        size_t lz_dest = (pc < 5) ? 0 : pc-5;
         
         __m256i nextPrimes_lead1 = _mm256_add_epi64(bitVals_lead1, low_vec);
-        _mm256_storeu_si256((__m256i*)(prime_ptr+lz_dest+2), nextPrimes_lead1);
+        _mm256_storeu_si256((__m256i*)(prime_ptr+lz_dest+1), nextPrimes_lead1);
 
         
 
@@ -628,17 +628,18 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         auto bitIndexV = 63ull xor __builtin_clzll(bits_lz);
 
         auto bitIndex5 = ctz64(bits); bits &= bits - 1;
-        bits_lz = _bzhi_u64(bits_lz, bitIndexV);
-        auto bitIndexU = 63ull xor __builtin_clzll(bits_lz);
+        //bits_lz = _bzhi_u64(bits_lz, bitIndexV);
+        //auto bitIndexU = 63ull xor __builtin_clzll(bits_lz);
 
         auto bitIndex6 = ctz64(bits); bits &= bits - 1;
         auto bitIndex7 = ctz64(bits); //bits &= bits - 1;
         
         //bits_lz = _bzhi_u64(bits_lz, bitIndexU);
-        __m128i bitVals_lead0 = _mm_set_epi64x(
+        /*__m128i bitVals_lead0 = _mm_set_epi64x(
           bitValues[bitIndexV],
           bitValues[bitIndexU]
-        );
+        );*/
+        uint64_t bitVals_lead0 = bitValues[bitIndexV];
         __m256i bitVals_tail1 = _mm256_set_epi64x(
           bitValues[bitIndex7],
           bitValues[bitIndex6],
@@ -651,9 +652,10 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         
         
 
-                
-        __m128i nextPrimes_lead0 = _mm_add_epi64(bitVals_lead0, _mm256_castsi256_si128(low_vec));
-        _mm_storeu_si128((__m128i*)(prime_ptr+lz_dest), nextPrimes_lead0);
+        prime_ptr[lz_dest] = bitVals_lead0 +
+          _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
+        //__m128i nextPrimes_lead0 = _mm_add_epi64(bitVals_lead0, _mm256_castsi256_si128(low_vec));
+        //_mm_storeu_si128((__m128i*)(prime_ptr+lz_dest), nextPrimes_lead0);
 
         // Load bit indices into ymm register. 
         // Warning: if a compiler implements this
@@ -727,9 +729,9 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       // In the unlikely event that it
       // isn't, use this code (almost surely
       // triggering branch misprediction).
-      if(pc > 14) [[unlikely]]
+      if(pc > 13) [[unlikely]]
       {
-        for(size_t iter = 0; iter + 14 < pc; iter++)
+        for(size_t iter = 0; iter + 13 < pc; iter++)
         {
           bits &= bits - 1;
           auto bitIndex = ctz64(bits);
