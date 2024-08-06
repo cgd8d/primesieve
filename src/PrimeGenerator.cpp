@@ -631,20 +631,26 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         bits_lz = _bzhi_u64(bits_lz, bitIndexV);
         auto bitIndexU = 63ull xor __builtin_clzll(bits_lz);
 
-        auto bitIndex6 = ctz64(bits); bits &= bits - 1;
-        auto bitIndex7 = ctz64(bits); //bits &= bits - 1;
+        __m128i bitVals_tail1 = _mm_set_epi64x(
+          bitValues[bitIndex5],
+          bitValues[bitIndex4]
+        );
+        
+        auto bitIndex6 = ctz64(bits); //bits &= bits - 1;
+        //auto bitIndex7 = ctz64(bits); //bits &= bits - 1;
         
         //bits_lz = _bzhi_u64(bits_lz, bitIndexU);
         __m128i bitVals_lead0 = _mm_set_epi64x(
           bitValues[bitIndexV],
           bitValues[bitIndexU]
         );
-        __m256i bitVals_tail1 = _mm256_set_epi64x(
+        uint64_t bitVals_tail2 = bitValues[bitIndex6];
+        /*__m256i bitVals_tail1 = _mm256_set_epi64x(
           bitValues[bitIndex7],
           bitValues[bitIndex6],
           bitValues[bitIndex5],
           bitValues[bitIndex4]
-        );
+        );*/
         
 
         
@@ -683,8 +689,10 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         __m256i nextPrimes_tail0 = _mm256_add_epi64(bitVals_tail0, low_vec);
         _mm256_storeu_si256((__m256i*)(prime_ptr), nextPrimes_tail0);
         
-        __m256i nextPrimes_tail1 = _mm256_add_epi64(bitVals_tail1, low_vec);
-        _mm256_storeu_si256((__m256i*)(prime_ptr+4), nextPrimes_tail1);
+        __m128i nextPrimes_tail1 = _mm_add_epi64(bitVals_tail1, _mm256_castsi256_si128(low_vec));
+        _mm_storeu_si128((__m128i*)(prime_ptr+4), nextPrimes_tail1);
+        prime_ptr[6] = bitVals_tail2 +
+          _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
 
         /*if(not std::is_sorted(primes.data()+j+4*iter, primes.data()+j+std::min(4*iter+4,pc)))
         {
@@ -722,14 +730,14 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
       //}
       //}
 
-      // We have handled up to 14 primes
+      // We have handled up to 13 primes
       // which is usually enough. 
       // In the unlikely event that it
       // isn't, use this code (almost surely
       // triggering branch misprediction).
-      if(pc > 14) [[unlikely]]
+      if(pc > 13) [[unlikely]]
       {
-        for(size_t iter = 0; iter + 14 < pc; iter++)
+        for(size_t iter = 0; iter + 13 < pc; iter++)
         {
           bits &= bits - 1;
           auto bitIndex = ctz64(bits);
