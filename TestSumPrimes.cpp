@@ -3,6 +3,7 @@
 #include <iostream>
 #include <numeric>
 #include <string>
+#include <cassert>
 
 int main(int argc, char *argv[])
 {
