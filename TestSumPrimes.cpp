@@ -2,11 +2,16 @@
 #include <primesieve.hpp>
 #include <iostream>
 #include <numeric>
+#include <string>
+#include <cassert>
 
-int main()
+int main(int argc, char *argv[])
 {
-  uint64_t start = 0;
-  uint64_t stop = 1ull << 40;
+  assert(argc == 2);
+  uint64_t StartExp = std::stoul(argv[1]);
+  
+  uint64_t start = 1ull << StartExp;
+  uint64_t stop = start + (1ull << 40);
   uint64_t acc = 0;
   primesieve::iterator it(start);
   it.generate_next_primes();
@@ -21,7 +26,7 @@ int main()
 
   std::cout << "Sum of primes in ["
     << start << ", " << stop
-    << "] (mod 2^64) = " << acc
+    << ") (mod 2^64) = " << acc
     << std::endl;
 
   return 0;
