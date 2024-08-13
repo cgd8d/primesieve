@@ -38,11 +38,21 @@ jobs:
         run: |
           # ./primesieve 2^40 --threads=1 --time --no-status
           ./TestSumPrimes 0
-      - name: Count primes from 2^60 for reference (branch)
-        run: ./primesieve 2^60 --dist 2^40 --threads=1 --time --no-status
-      - name: Do timing from 2^60 (branch)
+      - name: Count primes from 2^47 for reference (branch)
+        run: ./primesieve 2^47 --dist 2^40 --threads=1 --time --no-status
+      - name: Do timing from 2^47 (branch)
         run: |
-          ./TestSumPrimes 60
+          ./TestSumPrimes 47
+      - name: Count primes from 2^48 for reference (branch)
+        run: ./primesieve 2^48 --dist 2^40 --threads=1 --time --no-status
+      - name: Do timing from 2^48 (branch)
+        run: |
+          ./TestSumPrimes 48
+      - name: Count primes from 2^63 for reference (branch)
+        run: ./primesieve 2^63 --dist 2^40 --threads=1 --time --no-status
+      - name: Do timing from 2^63 (branch)
+        run: |
+          ./TestSumPrimes 63
       - name: Compile main
         run: |
           rm primesieve
@@ -57,11 +67,21 @@ jobs:
         run: |
           # ./primesieve 2^40 --threads=1 --time --no-status
           ./TestSumPrimes 0
-      - name: Count primes from 2^60 for reference (main)
-        run: ./primesieve 2^60 --dist 2^40 --threads=1 --time --no-status
-      - name: Do timing from 2^60 (main)
+      - name: Count primes from 2^47 for reference (main)
+        run: ./primesieve 2^47 --dist 2^40 --threads=1 --time --no-status
+      - name: Do timing from 2^47 (main)
         run: |
-          ./TestSumPrimes 60
+          ./TestSumPrimes 47
+      - name: Count primes from 2^48 for reference (main)
+        run: ./primesieve 2^48 --dist 2^40 --threads=1 --time --no-status
+      - name: Do timing from 2^48 (main)
+        run: |
+          ./TestSumPrimes 48
+      - name: Count primes from 2^63 for reference (main)
+        run: ./primesieve 2^63 --dist 2^40 --threads=1 --time --no-status
+      - name: Do timing from 2^63 (main)
+        run: |
+          ./TestSumPrimes 63
 
       # Save output file 
       - name: Save job output
