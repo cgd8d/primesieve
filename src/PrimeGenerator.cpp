@@ -35,6 +35,8 @@
 #include <algorithm>
 #include <limits>
 
+#include <iostream>
+
 #if defined(ENABLE_AVX512_VBMI2) || \
     defined(ENABLE_MULTIARCH_AVX512_VBMI2)
   #include <immintrin.h>
@@ -394,6 +396,28 @@ void PrimeGenerator::fillPrevPrimes(Vector<uint64_t>& primes,
   }
 }
 
+
+struct TestHist
+{
+  std::vector<uint64_t> v;
+  uint64_t t;
+
+  TestHist()
+{
+    v.assign(65,0);
+    t=0;
+}
+
+~TestHist()
+{
+    std::cout<< "Hist results ("<<t<<" total hits):"<<std::endl;
+    for(size_t i=0;i<65;i++){
+        std::cout<<i<<"\t: "<<100*double(v[i])/t<<std::endl;
+    }
+}
+};
+TestHist aTestHist;
+
 #if defined(ENABLE_DEFAULT)
 
 /// This method is used by iterator::next_prime().
@@ -414,44 +438,283 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         return;
 
     // Use local variables to prevent the compiler from
-    // writing temporary results to memory.
-    std::size_t i = *size;
-    std::size_t maxSize = primes.size();
-    ASSERT(i + 64 <= maxSize);
-    uint64_t low = low_;
+    // writing temporary results to memory,
+    // but sparingly to avoid excessive register usage.
+    uint64_t* prime_ptr = primes.data() + *size;
+    uint64_t* prime_end = primes.data() + primes.size();
+    ASSERT(std::distance(prime_ptr, prime_end) >= 64);
     uint64_t sieveIdx = sieveIdx_;
     uint64_t sieveSize = sieve_.size();
     uint8_t* sieve = sieve_.data();
+
+    __m256i low_vec = _mm256_set1_epi64x(low_);
+    __m256i low_step = _mm256_set1_epi64x(8 * 30);
 
     // Fill the buffer with at least (maxSize - 64) primes.
     // Each loop iteration can generate up to 64 primes
     // so we have to stop generating primes once there is
     // not enough space for 64 more primes.
-    do
+
+    if(low_ < (1ull << 48))
     {
-      uint64_t bits = littleendian_cast<uint64_t>(&sieve[sieveIdx]);
-      std::size_t j = i;
-      i += popcnt64(bits);
+      // Handle up to 14 primes in branchless code.
+      // For smaller primes low<2^48 the primes are
+      // denser so it is more likely to get up to 14
+      // in a window of 240 numbers.
 
       do
       {
-        primes[j+0] = nextPrime(bits, low); bits &= bits - 1;
-        primes[j+1] = nextPrime(bits, low); bits &= bits - 1;
-        primes[j+2] = nextPrime(bits, low); bits &= bits - 1;
-        primes[j+3] = nextPrime(bits, low); bits &= bits - 1;
-        j += 4;
+        uint64_t bits = littleendian_cast<uint64_t>(&sieve[sieveIdx]);
+        uint64_t bits_lz = bits;
+        size_t pc = popcnt64(bits);
+        
+        // We want the compiler to interleave lzcnt
+        // and tzcnt, which on most processors 
+        // can run in parallel.  Compilers don't
+        // seem to handle scheduling well at this level, 
+        // but ordering the C++ code seems to help.
+        auto bitIndexZ = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexZ);
+        auto bitIndex0 = ctz64(bits); bits &= bits - 1;
+        __m128i bitVals_tail0_lo = _mm_cvtsi64_si128(
+          bitValues[bitIndex0]
+        );
+        
+        auto bitIndexY = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexY);
+        auto bitIndex1 = ctz64(bits); bits &= bits - 1;
+
+        bitVals_tail0_lo = _mm_insert_epi64(
+          bitVals_tail0_lo,
+          bitValues[bitIndex1],
+          1);
+        __m128i bitVals_lead1_hi = _mm_set_epi64x(
+          bitValues[bitIndexZ],
+          bitValues[bitIndexY]
+        );
+        
+        auto bitIndexX = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexX);
+        auto bitIndex2 = ctz64(bits); bits &= bits - 1;
+
+        __m128i bitVals_tail0_hi = _mm_cvtsi64_si128(
+          bitValues[bitIndex2]
+        );
+        
+        auto bitIndexW = 63ull xor __builtin_clzll(bits_lz);
+        auto bitIndex3 = ctz64(bits); bits &= bits - 1;
+
+        __m128i bitVals_lead1_lo = _mm_set_epi64x(
+          bitValues[bitIndexX],
+          bitValues[bitIndexW]
+        );
+        bitVals_tail0_hi = _mm_insert_epi64(
+          bitVals_tail0_hi,
+          bitValues[bitIndex3],
+          1);
+
+        __m256i bitVals_lead1 = _mm256_set_m128i(
+          bitVals_lead1_hi,
+          bitVals_lead1_lo
+        );
+        __m256i bitVals_tail0 = _mm256_set_m128i(
+          bitVals_tail0_hi,
+          bitVals_tail0_lo
+        );
+
+        // Store 6 primes from lzcnt first.
+        // If pc<6 then we don't need these, 
+        // but to keep the code branch-free
+        // we use a destination address that
+        // will do no harm.
+        // Compiler should implement with
+        // branch-free cmov instruction.
+        size_t lz_dest = (pc < 6) ? 0 : pc-6;
+        
+        __m256i nextPrimes_lead1 = _mm256_add_epi64(bitVals_lead1, low_vec);
+        _mm256_storeu_si256((__m256i*)(prime_ptr+lz_dest+2), nextPrimes_lead1);
+
+        auto bitIndex4 = ctz64(bits); bits &= bits - 1;
+        bits_lz = _bzhi_u64(bits_lz, bitIndexW);
+        auto bitIndexV = 63ull xor __builtin_clzll(bits_lz);
+
+        auto bitIndex5 = ctz64(bits); bits &= bits - 1;
+        bits_lz = _bzhi_u64(bits_lz, bitIndexV);
+        auto bitIndexU = 63ull xor __builtin_clzll(bits_lz);
+
+        auto bitIndex6 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex7 = ctz64(bits); //bits &= bits - 1;
+        
+        __m128i bitVals_lead0 = _mm_set_epi64x(
+          bitValues[bitIndexV],
+          bitValues[bitIndexU]
+        );
+        __m256i bitVals_tail1 = _mm256_set_epi64x(
+          bitValues[bitIndex7],
+          bitValues[bitIndex6],
+          bitValues[bitIndex5],
+          bitValues[bitIndex4]
+        );
+                
+        __m128i nextPrimes_lead0 = _mm_add_epi64(bitVals_lead0, _mm256_castsi256_si128(low_vec));
+        _mm_storeu_si128((__m128i*)(prime_ptr+lz_dest), nextPrimes_lead0);
+
+        __m256i nextPrimes_tail0 = _mm256_add_epi64(bitVals_tail0, low_vec);
+        _mm256_storeu_si256((__m256i*)(prime_ptr), nextPrimes_tail0);
+        
+        __m256i nextPrimes_tail1 = _mm256_add_epi64(bitVals_tail1, low_vec);
+        _mm256_storeu_si256((__m256i*)(prime_ptr+4), nextPrimes_tail1);
+
+        // We have handled up to 14 primes
+        // which is usually enough. 
+        // In the unlikely event that it
+        // isn't, use this code (almost surely
+        // triggering branch misprediction).
+        if(pc > 14) [[unlikely]]
+        {
+          for(size_t iter = 0; iter + 14 < pc; iter++)
+          {
+            bits &= bits - 1;
+            auto bitIndex = ctz64(bits);
+            uint64_t this_low = _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
+            prime_ptr[8+iter] = this_low + bitValues[bitIndex];
+          }
+        }
+
+        low_vec = _mm256_add_epi64(low_vec, low_step);
+        prime_ptr += pc;
+        sieveIdx += 8;
       }
-      while (j < i);
-
-      low += 8 * 30;
-      sieveIdx += 8;
+      while (std::distance(prime_ptr, prime_end) >= 64 &&
+             sieveIdx < sieveSize);
     }
-    while (i <= maxSize - 64 &&
-           sieveIdx < sieveSize);
+    else
+    {
+      // Handle up to 10 primes in branchless code.
+      // For larger primes low>2^48 the primes are
+      // less dense so it is less likely to get >10
+      // in a window of 240 numbers.
 
-    low_ = low;
+      do
+      {
+        uint64_t bits = littleendian_cast<uint64_t>(&sieve[sieveIdx]);
+        uint64_t bits_lz = bits;
+        size_t pc = popcnt64(bits);
+        
+        // We want the compiler to interleave lzcnt
+        // and tzcnt, which on most processors 
+        // can run in parallel.  Compilers don't
+        // seem to handle scheduling well at this level, 
+        // but ordering the C++ code seems to help.
+        auto bitIndexZ = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexZ);
+        auto bitIndex0 = ctz64(bits); bits &= bits - 1;
+        __m128i bitVals_tail0_lo = _mm_cvtsi64_si128(
+          bitValues[bitIndex0]
+        );
+        
+        auto bitIndexY = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexY);
+        auto bitIndex1 = ctz64(bits); bits &= bits - 1;
+
+        bitVals_tail0_lo = _mm_insert_epi64(
+          bitVals_tail0_lo,
+          bitValues[bitIndex1],
+          1);
+        __m128i bitVals_lead1_hi = _mm_set_epi64x(
+          bitValues[bitIndexZ],
+          bitValues[bitIndexY]
+        );
+        
+        auto bitIndexX = 63ull xor __builtin_clzll(bits_lz);
+        bits_lz = _bzhi_u64(bits_lz, bitIndexX);
+        auto bitIndex2 = ctz64(bits); bits &= bits - 1;
+
+        __m128i bitVals_tail0_hi = _mm_cvtsi64_si128(
+          bitValues[bitIndex2]
+        );
+        
+        auto bitIndexW = 63ull xor __builtin_clzll(bits_lz);
+        auto bitIndex3 = ctz64(bits); bits &= bits - 1;
+
+        __m128i bitVals_lead1_lo = _mm_set_epi64x(
+          bitValues[bitIndexX],
+          bitValues[bitIndexW]
+        );
+        bitVals_tail0_hi = _mm_insert_epi64(
+          bitVals_tail0_hi,
+          bitValues[bitIndex3],
+          1);
+
+        __m256i bitVals_lead1 = _mm256_set_m128i(
+          bitVals_lead1_hi,
+          bitVals_lead1_lo
+        );
+        __m256i bitVals_tail0 = _mm256_set_m128i(
+          bitVals_tail0_hi,
+          bitVals_tail0_lo
+        );
+
+        // Store 4 primes from lzcnt first.
+        // If pc<4 then we don't need these, 
+        // but to keep the code branch-free
+        // we use a destination address that
+        // will do no harm.
+        // Compiler should implement with
+        // branch-free cmov instruction.
+        size_t lz_dest = (pc < 4) ? 0 : pc-4;
+        
+        __m256i nextPrimes_lead1 = _mm256_add_epi64(bitVals_lead1, low_vec);
+        _mm256_storeu_si256((__m256i*)(prime_ptr+lz_dest), nextPrimes_lead1);
+
+        auto bitIndex4 = ctz64(bits); bits &= bits - 1;
+        auto bitIndex5 = ctz64(bits); bits &= bits - 1;
+
+        __m128i bitVals_tail1_lo = _mm_set_epi64x(
+          bitValues[bitIndex5],
+          bitValues[bitIndex4]
+        );
+
+        __m256i nextPrimes_tail0 = _mm256_add_epi64(bitVals_tail0, low_vec);
+        _mm256_storeu_si256((__m256i*)(prime_ptr), nextPrimes_tail0);
+        
+        __m128i nextPrimes_tail1_lo = _mm_add_epi64(bitVals_tail1, _mm256_castsi256_si128(low_vec));
+        _mm128_storeu_si128((__m128i*)(prime_ptr+4), nextPrimes_tail1);
+
+        // We have handled up to 10 primes
+        // which is usually enough. 
+        // In the unlikely event that it
+        // isn't, use this code (almost surely
+        // triggering branch misprediction).
+        if(pc > 10) [[unlikely]]
+        {
+          for(size_t iter = 0; iter + 10 < pc; iter++)
+          {
+            bits &= bits - 1;
+            auto bitIndex = ctz64(bits);
+            uint64_t this_low = _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
+            prime_ptr[8+iter] = this_low + bitValues[bitIndex];
+          }
+        }
+
+        low_vec = _mm256_add_epi64(low_vec, low_step);
+        prime_ptr += pc;
+        sieveIdx += 8;
+      }
+      while (std::distance(prime_ptr, prime_end) >= 64 &&
+             sieveIdx < sieveSize);
+    }
+
+    // Recommended to avoid mixing SSE and
+    // AVX instructions, which has a penalty 
+    // on many processors.
+    _mm256_zeroupper();
+
+    //low_ = low;
+
+    low_ = _mm_cvtsi128_si64(_mm256_castsi256_si128(low_vec));
     sieveIdx_ = sieveIdx;
-    *size = i;
+    *size = std::distance(primes.data(), prime_ptr);
   }
   while (*size == 0);
 }
