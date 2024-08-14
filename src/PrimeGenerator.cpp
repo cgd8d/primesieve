@@ -678,8 +678,8 @@ void PrimeGenerator::fillNextPrimes_default(Vector<uint64_t>& primes, std::size_
         __m256i nextPrimes_tail0 = _mm256_add_epi64(bitVals_tail0, low_vec);
         _mm256_storeu_si256((__m256i*)(prime_ptr), nextPrimes_tail0);
         
-        __m128i nextPrimes_tail1_lo = _mm_add_epi64(bitVals_tail1, _mm256_castsi256_si128(low_vec));
-        _mm128_storeu_si128((__m128i*)(prime_ptr+4), nextPrimes_tail1);
+        __m128i nextPrimes_tail1_lo = _mm_add_epi64(bitVals_tail1_lo, _mm256_castsi256_si128(low_vec));
+        _mm_storeu_si128((__m128i*)(prime_ptr+4), nextPrimes_tail1_lo);
 
         // We have handled up to 10 primes
         // which is usually enough. 
