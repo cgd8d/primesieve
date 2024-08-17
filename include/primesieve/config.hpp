@@ -36,7 +36,7 @@ constexpr uint64_t L1D_CACHE_BYTES = 32 << 10;
 /// - For x86-64 CPUs before 2010 use 4096
 /// - For PowerPC G4 CPUs    2003 use 2048
 ///
-constexpr uint64_t BUCKET_BYTES = 8 << 10;
+constexpr uint64_t BUCKET_BYTES = 16 << 10;
 
 /// The MemoryPool allocates at most MAX_ALLOC_BYTES of new
 /// memory when it runs out of buckets.
