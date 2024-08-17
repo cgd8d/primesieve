@@ -33,23 +33,23 @@ jobs:
           ./primesieve --cpu-info
           lscpu
       - name: Count primes from 0 for reference (branch)
-        run: ./primesieve 2^40 --threads=1 --time --no-status --size=1024
+        run: ./primesieve 2^40 --threads=1 --time --no-status --size=4096
       - name: Do timing from 0 (branch)
         run: |
           # ./primesieve 2^40 --threads=1 --time --no-status
           ./TestSumPrimes 0
       - name: Count primes from 2^47 for reference (branch)
-        run: ./primesieve 2^47 --dist 2^40 --threads=1 --time --no-status --size=1024
+        run: ./primesieve 2^47 --dist 2^40 --threads=1 --time --no-status --size=4096
       - name: Do timing from 2^47 (branch)
         run: |
           ./TestSumPrimes 47
       - name: Count primes from 2^48 for reference (branch)
-        run: ./primesieve 2^48 --dist 2^40 --threads=1 --time --no-status --size=1024
+        run: ./primesieve 2^48 --dist 2^40 --threads=1 --time --no-status --size=4096
       - name: Do timing from 2^48 (branch)
         run: |
           ./TestSumPrimes 48
       - name: Count primes from 2^63 for reference (branch)
-        run: ./primesieve 2^63 --dist 2^40 --threads=1 --time --no-status --size=1024
+        run: ./primesieve 2^63 --dist 2^40 --threads=1 --time --no-status --size=4096
       - name: Do timing from 2^63 (branch)
         run: |
           ./TestSumPrimes 63
