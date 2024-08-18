@@ -94,7 +94,7 @@ constexpr double FACTOR_ERATSMALL = 0.2;
 /// FACTOR_ERATMEDIUM <= ((2^23 - 7) * 30) / (2^23 * 6)
 /// FACTOR_ERATMEDIUM <= 4.99999582
 ///
-constexpr double FACTOR_ERATMEDIUM = 1.0;
+constexpr double FACTOR_ERATMEDIUM = 3.0;
 
 } // namespace config
 } // namespace
